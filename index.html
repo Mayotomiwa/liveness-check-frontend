@@ -2,194 +2,124 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Liveness Detection</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liveness Detection Test</title>
     <style>
-        /* Custom styles to complement Tailwind */
-        .gradient-bg {
-            background: linear-gradient(135deg, rgb(17, 24, 39), rgb(31, 41, 55));
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        /* Prevent text selection during touch interactions */
-        * {
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            user-select: none;
-        }
-        /* Ensure full height on mobile browsers */
-        html, body {
-            height: 100%;
-            overflow-x: hidden;
-            position: fixed;
+        video {
             width: 100%;
+            max-width: 500px;
+            background: #000;
+            margin: 10px 0;
         }
-        /* Hide scrollbar */
-        ::-webkit-scrollbar {
-            display: none;
+        button {
+            background: #4285F4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected { background: #e6f4ea; color: #0d652d; }
+        .disconnected { background: #fce8e6; color: #d93025; }
+        .challenge {
+            background: #f1f3f4;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .timer {
+            font-weight: bold;
+            color: #d93025;
         }
     </style>
 </head>
-<body class="gradient-bg h-full text-white">
-    <div class="h-full flex flex-col">
-        <!-- Header -->
-        <div class="px-4 py-3 text-center">
-            <h1 class="text-2xl font-bold">Liveness Detection</h1>
-            <p class="text-sm text-gray-300">Complete the facial movement challenges</p>
-        </div>
-
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col">
-            <!-- Video Feed (takes up available space) -->
-            <div class="relative flex-1 bg-black">
-                <video id="video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
-                <div id="cameraPlaceholder" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-white opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                        <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                </div>
-            </div>
-
-            <!-- Controls and Info Panel (fixed height) -->
-            <div class="bg-gray-900 bg-opacity-90 backdrop-blur-sm">
-                <!-- Status Bar -->
-                <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800">
-                    <div class="flex items-center gap-2">
-                        <div id="connectionStatus" class="w-2 h-2 rounded-full bg-red-500"></div>
-                        <span id="connectionText" class="text-xs">Disconnected</span>
-                    </div>
-                    <div id="timer" class="text-xs font-mono"></div>
-                </div>
-
-                <!-- Challenge Info -->
-                <div id="challengeInfo" class="px-4 py-3" style="display: none;">
-                    <div class="space-y-2">
-                        <p id="challengeText" class="text-sm font-medium"></p>
-                        <p id="instructions" class="text-xs text-gray-400"></p>
-                        <p id="progress" class="text-xs text-gray-400"></p>
-                    </div>
-                </div>
-
-                <!-- Results -->
-                <div id="results" class="px-4 py-2"></div>
-
-                <!-- Action Buttons -->
-                <div class="flex gap-2 p-4 pt-2">
-                    <button id="startBtn" class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 active:bg-blue-700 text-sm font-medium">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                        Start
-                    </button>
-                    
-                    <button id="stopBtn" disabled class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-700 text-sm font-medium opacity-50">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <rect x="9" y="9" width="6" height="6"/>
-                        </svg>
-                        Stop
-                    </button>
-                </div>
-            </div>
-        </div>
+<body>
+    <h1>Liveness Detection Test</h1>
+    <div>
+        <button id="startBtn">Start Liveness Check</button>
+        <button id="stopBtn" disabled>Stop</button>
     </div>
+    
+    <video id="video" autoplay playsinline></video>
+    
+    <div id="status" class="disconnected">Disconnected</div>
+    
+    <div id="challengeInfo" class="challenge" style="display: none;">
+        <h3>Current Challenge</h3>
+        <p id="challengeText"></p>
+        <p id="instructions"></p>
+        <p id="progress"></p>
+        <p id="timer" class="timer"></p>
+    </div>
+    
+    <div id="results"></div>
 
     <script>
         const video = document.getElementById('video');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const connectionText = document.getElementById('connectionText');
+        const statusDiv = document.getElementById('status');
         const challengeInfo = document.getElementById('challengeInfo');
         const challengeText = document.getElementById('challengeText');
         const instructions = document.getElementById('instructions');
         const progress = document.getElementById('progress');
-        const timer = document.getElementById('timer');
-        const results = document.getElementById('results');
-        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const timerDisplay = document.getElementById('timer');
+        const resultsDiv = document.getElementById('results');
         
-        const wsUrl = 'wss://liveness-check-backend.onrender.com/ws';
+        // Change this to your Render URL or local server
+        const wsUrl = 'wss://liveness-check-backend.onrender.com/ws'; 
         const apiKey = 'liveness_detection_key_2025';
         
         let socket;
         let stream;
         let captureInterval;
         let sessionId;
-        let challengeTimeout = 50;
+        let challengeTimeout = 50; // Default timeout (will be updated from server)
         let timerInterval;
 
-        // Prevent bounce/zoom on double tap
-        document.addEventListener('touchstart', function(event) {
-            if (event.touches.length > 1) {
-                event.preventDefault();
-            }
-        }, { passive: false });
-
-        // Prevent pinch zoom
-        document.addEventListener('touchmove', function(event) {
-            if (event.touches.length > 1) {
-                event.preventDefault();
-            }
-        }, { passive: false });
-
-        function updateConnectionStatus(connected) {
-            connectionStatus.className = `w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`;
-            connectionText.textContent = connected ? 'Connected' : 'Disconnected';
-        }
-
-        function showResult(message, success) {
-            const icon = success ? 
-                `<svg class="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>` :
-                `<svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="15" y1="9" x2="9" y2="15"/>
-                    <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>`;
-
-            results.innerHTML = `
-                <div class="rounded-lg flex items-center gap-2 py-2 text-sm">
-                    ${icon}
-                    <span>${message}</span>
-                </div>
-            `;
-        }
-
+        // Start the liveness check
         startBtn.onclick = async () => {
             try {
-                results.innerHTML = '';
+                // Clear previous results
+                resultsDiv.innerHTML = '';
                 
-                const constraints = {
+                // Access camera
+                stream = await navigator.mediaDevices.getUserMedia({ 
                     video: {
                         facingMode: 'user',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
                     },
                     audio: false
-                };
-
-                // Try to get the best possible camera on mobile
-                if (navigator.mediaDevices.getSupportedConstraints().facingMode) {
-                    constraints.video.facingMode = {
-                        exact: 'user'
-                    };
-                }
-                
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                });
                 video.srcObject = stream;
-                cameraPlaceholder.style.display = 'none';
                 
+                // Initialize WebSocket
                 socket = new WebSocket(wsUrl);
                 
                 socket.onopen = () => {
-                    updateConnectionStatus(true);
+                    statusDiv.textContent = 'Connected - Starting session...';
+                    statusDiv.className = 'connected';
                     startBtn.disabled = true;
-                    startBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-700 opacity-50 text-sm font-medium';
                     stopBtn.disabled = false;
-                    stopBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-red-600 active:bg-red-700 text-sm font-medium';
                     
+                    // Send initialization message
                     socket.send(JSON.stringify({
                         type: 'init',
                         apiKey: apiKey
@@ -198,7 +128,9 @@
                 
                 socket.onmessage = (event) => {
                     const data = JSON.parse(event.data);
+                    console.log('Received:', data);
                     
+                    // Handle ping messages to keep connection alive
                     if (data.type === 'ping') {
                         socket.send(JSON.stringify({ type: 'pong' }));
                         return;
@@ -206,8 +138,10 @@
                     
                     if (data.type === 'session') {
                         sessionId = data.sessionId;
+                        statusDiv.textContent = `Session started (${sessionId})`;
                         challengeInfo.style.display = 'block';
                         
+                        // Set challenge timeout from server
                         if (data.timeout) {
                             challengeTimeout = data.timeout;
                         }
@@ -219,56 +153,72 @@
                     else if (data.type === 'verification') {
                         updateChallengeUI(data);
                         
+                        // Check if we need to move to next challenge
                         if (data.success) {
+                            // Reset the timer for the next challenge
                             resetChallengeTimer();
                         }
                         
+                        // Check for permanent verification failure
                         if (data.verificationFailed) {
-                            showResult(data.message, false);
+                            resultsDiv.innerHTML = `<div style="color:red;font-weight:bold;">
+                                ❌ Verification failed: ${data.message}
+                            </div>`;
                             stopTest();
                         }
                     }
                     else if (data.type === 'complete') {
-                        showResult('Verification successful!', true);
+                        resultsDiv.innerHTML = `<div style="color:green;font-weight:bold;">
+                            ✅ Liveness verification successful!
+                        </div>`;
                         stopTest();
                     }
                     else if (data.type === 'error') {
-                        showResult(data.message, false);
+                        resultsDiv.innerHTML = `<div style="color:red;">
+                            Error: ${data.message}
+                        </div>`;
+                        // Don't automatically stop on certain errors
                         if (data.message.includes('timeout')) {
                             stopTest();
                         }
                     }
                 };
                 
-                socket.onclose = () => {
-                    updateConnectionStatus(false);
+                socket.onclose = (event) => {
+                    statusDiv.textContent = `Disconnected (${event.code})`;
+                    statusDiv.className = 'disconnected';
                     stopTest();
                 };
                 
-                socket.onerror = () => {
-                    updateConnectionStatus(false);
-                    showResult('Connection error occurred', false);
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    statusDiv.textContent = 'Connection error';
+                    statusDiv.className = 'disconnected';
                 };
                 
             } catch (error) {
-                showResult(error.message, false);
-                updateConnectionStatus(false);
+                console.error('Error:', error);
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.className = 'disconnected';
             }
         };
         
+        // Stop the test
         stopBtn.onclick = stopTest;
         
         function stopTest() {
+            // Stop camera
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
-                cameraPlaceholder.style.display = 'flex';
             }
             
+            // Stop WebSocket
             if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.close(1000, 'User stopped');
             }
             
+            // Clear intervals
             if (captureInterval) {
                 clearInterval(captureInterval);
             }
@@ -278,9 +228,7 @@
             }
             
             startBtn.disabled = false;
-            startBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 active:bg-blue-700 text-sm font-medium';
             stopBtn.disabled = true;
-            stopBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-700 opacity-50 text-sm font-medium';
             challengeInfo.style.display = 'none';
         }
         
@@ -292,11 +240,26 @@
                 instructions.textContent = data.instructions;
             }
             if (data.challengesCompleted && data.challengesTotal) {
-                progress.textContent = `Progress: ${data.challengesCompleted.length} of ${data.challengesTotal}`;
+                progress.textContent = `Progress: ${data.challengesCompleted.length} of ${data.challengesTotal} completed`;
+            }
+            
+            // Display success messages
+            if (data.message && data.success) {
+                resultsDiv.innerHTML = `<div style="color:green;">
+                    ✓ ${data.message}
+                </div>`;
+            } 
+            // Display error/guidance messages that aren't successes
+            else if (data.message && data.message !== "No movement detected" && 
+                     !data.message.includes("Initial position")) {
+                resultsDiv.innerHTML = `<div style="color:#d93025;">
+                    ${data.message}
+                </div>`;
             }
         }
         
         function startFrameCapture() {
+            // Capture frames every 500ms (2fps)
             captureInterval = setInterval(() => {
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     captureFrame();
@@ -305,19 +268,23 @@
         }
         
         function captureFrame() {
+            // Verify video is playing and has dimensions
             if (!video.videoWidth || !video.videoHeight) {
                 console.log("Video not ready yet");
                 return;
             }
             
+            // Create canvas to capture video frame
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
+            // Convert to base64
             const imageData = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
             
+            // Send to server
             socket.send(JSON.stringify({
                 type: 'frame',
                 image: imageData
@@ -327,15 +294,18 @@
         function startChallengeTimer() {
             let timeLeft = challengeTimeout;
             
-            timer.textContent = `${timeLeft}s`;
+            // Update timer display
+            timerDisplay.textContent = `Time remaining: ${timeLeft} seconds`;
             
+            // Clear any existing timers
             if (timerInterval) {
                 clearInterval(timerInterval);
             }
             
+            // Start new timer
             timerInterval = setInterval(() => {
                 timeLeft--;
-                timer.textContent = `${timeLeft}s`;
+                timerDisplay.textContent = `Time remaining: ${timeLeft} seconds`;
                 
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
@@ -344,6 +314,7 @@
         }
         
         function resetChallengeTimer() {
+            // Reset the timer for the next challenge
             if (timerInterval) {
                 clearInterval(timerInterval);
             }

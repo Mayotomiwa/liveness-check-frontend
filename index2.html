@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Liveness Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to complement Tailwind */
+        .gradient-bg {
+            background: linear-gradient(135deg, rgb(17, 24, 39), rgb(31, 41, 55));
+        }
+        /* Prevent text selection during touch interactions */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        /* Ensure full height on mobile browsers */
+        html, body {
+            height: 100%;
+            overflow-x: hidden;
+            position: fixed;
+            width: 100%;
+        }
+        /* Hide scrollbar */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="gradient-bg h-full text-white">
+    <div class="h-full flex flex-col">
+        <!-- Header -->
+        <div class="px-4 py-3 text-center">
+            <h1 class="text-2xl font-bold">Liveness Detection</h1>
+            <p class="text-sm text-gray-300">Complete the facial movement challenges</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Video Feed (takes up available space) -->
+            <div class="relative flex-1 bg-black">
+                <video id="video" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+                <div id="cameraPlaceholder" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-white opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Controls and Info Panel (fixed height) -->
+            <div class="bg-gray-900 bg-opacity-90 backdrop-blur-sm">
+                <!-- Status Bar -->
+                <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+                    <div class="flex items-center gap-2">
+                        <div id="connectionStatus" class="w-2 h-2 rounded-full bg-red-500"></div>
+                        <span id="connectionText" class="text-xs">Disconnected</span>
+                    </div>
+                    <div id="timer" class="text-xs font-mono"></div>
+                </div>
+
+                <!-- Challenge Info -->
+                <div id="challengeInfo" class="px-4 py-3" style="display: none;">
+                    <div class="space-y-2">
+                        <p id="challengeText" class="text-sm font-medium"></p>
+                        <p id="instructions" class="text-xs text-gray-400"></p>
+                        <p id="progress" class="text-xs text-gray-400"></p>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="results" class="px-4 py-2"></div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2 p-4 pt-2">
+                    <button id="startBtn" class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 active:bg-blue-700 text-sm font-medium">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Start
+                    </button>
+                    
+                    <button id="stopBtn" disabled class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-700 text-sm font-medium opacity-50">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <rect x="9" y="9" width="6" height="6"/>
+                        </svg>
+                        Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText = document.getElementById('connectionText');
+        const challengeInfo = document.getElementById('challengeInfo');
+        const challengeText = document.getElementById('challengeText');
+        const instructions = document.getElementById('instructions');
+        const progress = document.getElementById('progress');
+        const timer = document.getElementById('timer');
+        const results = document.getElementById('results');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        
+        const wsUrl = 'wss://liveness-check-backend.onrender.com/ws';
+        const apiKey = 'liveness_detection_key_2025';
+        
+        let socket;
+        let stream;
+        let captureInterval;
+        let sessionId;
+        let challengeTimeout = 50;
+        let timerInterval;
+
+        // Prevent bounce/zoom on double tap
+        document.addEventListener('touchstart', function(event) {
+            if (event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent pinch zoom
+        document.addEventListener('touchmove', function(event) {
+            if (event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        function updateConnectionStatus(connected) {
+            connectionStatus.className = `w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`;
+            connectionText.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+
+        function showResult(message, success) {
+            const icon = success ? 
+                `<svg class="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>` :
+                `<svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>`;
+
+            results.innerHTML = `
+                <div class="rounded-lg flex items-center gap-2 py-2 text-sm">
+                    ${icon}
+                    <span>${message}</span>
+                </div>
+            `;
+        }
+
+        startBtn.onclick = async () => {
+            try {
+                results.innerHTML = '';
+                
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                // Try to get the best possible camera on mobile
+                if (navigator.mediaDevices.getSupportedConstraints().facingMode) {
+                    constraints.video.facingMode = {
+                        exact: 'user'
+                    };
+                }
+                
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                cameraPlaceholder.style.display = 'none';
+                
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = () => {
+                    updateConnectionStatus(true);
+                    startBtn.disabled = true;
+                    startBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-700 opacity-50 text-sm font-medium';
+                    stopBtn.disabled = false;
+                    stopBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-red-600 active:bg-red-700 text-sm font-medium';
+                    
+                    socket.send(JSON.stringify({
+                        type: 'init',
+                        apiKey: apiKey
+                    }));
+                };
+                
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'ping') {
+                        socket.send(JSON.stringify({ type: 'pong' }));
+                        return;
+                    }
+                    
+                    if (data.type === 'session') {
+                        sessionId = data.sessionId;
+                        challengeInfo.style.display = 'block';
+                        
+                        if (data.timeout) {
+                            challengeTimeout = data.timeout;
+                        }
+                        
+                        updateChallengeUI(data);
+                        startFrameCapture();
+                        startChallengeTimer();
+                    }
+                    else if (data.type === 'verification') {
+                        updateChallengeUI(data);
+                        
+                        if (data.success) {
+                            resetChallengeTimer();
+                        }
+                        
+                        if (data.verificationFailed) {
+                            showResult(data.message, false);
+                            stopTest();
+                        }
+                    }
+                    else if (data.type === 'complete') {
+                        showResult('Verification successful!', true);
+                        stopTest();
+                    }
+                    else if (data.type === 'error') {
+                        showResult(data.message, false);
+                        if (data.message.includes('timeout')) {
+                            stopTest();
+                        }
+                    }
+                };
+                
+                socket.onclose = () => {
+                    updateConnectionStatus(false);
+                    stopTest();
+                };
+                
+                socket.onerror = () => {
+                    updateConnectionStatus(false);
+                    showResult('Connection error occurred', false);
+                };
+                
+            } catch (error) {
+                showResult(error.message, false);
+                updateConnectionStatus(false);
+            }
+        };
+        
+        stopBtn.onclick = stopTest;
+        
+        function stopTest() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                cameraPlaceholder.style.display = 'flex';
+            }
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close(1000, 'User stopped');
+            }
+            
+            if (captureInterval) {
+                clearInterval(captureInterval);
+            }
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            startBtn.disabled = false;
+            startBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 active:bg-blue-700 text-sm font-medium';
+            stopBtn.disabled = true;
+            stopBtn.className = 'flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-700 opacity-50 text-sm font-medium';
+            challengeInfo.style.display = 'none';
+        }
+        
+        function updateChallengeUI(data) {
+            if (data.currentChallenge) {
+                challengeText.textContent = data.currentChallenge;
+            }
+            if (data.instructions) {
+                instructions.textContent = data.instructions;
+            }
+            if (data.challengesCompleted && data.challengesTotal) {
+                progress.textContent = `Progress: ${data.challengesCompleted.length} of ${data.challengesTotal}`;
+            }
+        }
+        
+        function startFrameCapture() {
+            captureInterval = setInterval(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    captureFrame();
+                }
+            }, 500);
+        }
+        
+        function captureFrame() {
+            if (!video.videoWidth || !video.videoHeight) {
+                console.log("Video not ready yet");
+                return;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+            
+            socket.send(JSON.stringify({
+                type: 'frame',
+                image: imageData
+            }));
+        }
+        
+        function startChallengeTimer() {
+            let timeLeft = challengeTimeout;
+            
+            timer.textContent = `${timeLeft}s`;
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timer.textContent = `${timeLeft}s`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                }
+            }, 1000);
+        }
+        
+        function resetChallengeTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            startChallengeTimer();
+        }
+    </script>
+</body>
+</html>
