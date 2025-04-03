@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liveness Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+            background: #000;
+            margin: 10px 0;
+        }
+        button {
+            background: #4285F4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected { background: #e6f4ea; color: #0d652d; }
+        .disconnected { background: #fce8e6; color: #d93025; }
+        .challenge {
+            background: #f1f3f4;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .timer {
+            font-weight: bold;
+            color: #d93025;
+        }
+    </style>
+</head>
+<body>
+    <h1>Liveness Detection Test</h1>
+    <div>
+        <button id="startBtn">Start Liveness Check</button>
+        <button id="stopBtn" disabled>Stop</button>
+    </div>
+    
+    <video id="video" autoplay playsinline></video>
+    
+    <div id="status" class="disconnected">Disconnected</div>
+    
+    <div id="challengeInfo" class="challenge" style="display: none;">
+        <h3>Current Challenge</h3>
+        <p id="challengeText"></p>
+        <p id="instructions"></p>
+        <p id="progress"></p>
+        <p id="timer" class="timer"></p>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDiv = document.getElementById('status');
+        const challengeInfo = document.getElementById('challengeInfo');
+        const challengeText = document.getElementById('challengeText');
+        const instructions = document.getElementById('instructions');
+        const progress = document.getElementById('progress');
+        const timerDisplay = document.getElementById('timer');
+        const resultsDiv = document.getElementById('results');
+        
+        // Change this to your Render URL or local server
+        const wsUrl = 'wss://liveness-check-backend.onrender.com/ws'; 
+        const apiKey = 'liveness_detection_key_2025';
+        
+        let socket;
+        let stream;
+        let captureInterval;
+        let sessionId;
+        let challengeTimeout = 50; // Default timeout (will be updated from server)
+        let timerInterval;
+
+        // Start the liveness check
+        startBtn.onclick = async () => {
+            try {
+                // Clear previous results
+                resultsDiv.innerHTML = '';
+                
+                // Access camera
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+                video.srcObject = stream;
+                
+                // Initialize WebSocket
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = () => {
+                    statusDiv.textContent = 'Connected - Starting session...';
+                    statusDiv.className = 'connected';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    
+                    // Send initialization message
+                    socket.send(JSON.stringify({
+                        type: 'init',
+                        apiKey: apiKey
+                    }));
+                };
+                
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('Received:', data);
+                    
+                    // Handle ping messages to keep connection alive
+                    if (data.type === 'ping') {
+                        socket.send(JSON.stringify({ type: 'pong' }));
+                        return;
+                    }
+                    
+                    if (data.type === 'session') {
+                        sessionId = data.sessionId;
+                        statusDiv.textContent = `Session started (${sessionId})`;
+                        challengeInfo.style.display = 'block';
+                        
+                        // Set challenge timeout from server
+                        if (data.timeout) {
+                            challengeTimeout = data.timeout;
+                        }
+                        
+                        updateChallengeUI(data);
+                        startFrameCapture();
+                        startChallengeTimer();
+                    }
+                    else if (data.type === 'verification') {
+                        updateChallengeUI(data);
+                        
+                        // Check if we need to move to next challenge
+                        if (data.success) {
+                            // Reset the timer for the next challenge
+                            resetChallengeTimer();
+                        }
+                        
+                        // Check for permanent verification failure
+                        if (data.verificationFailed) {
+                            resultsDiv.innerHTML = `<div style="color:red;font-weight:bold;">
+                                ❌ Verification failed: ${data.message}
+                            </div>`;
+                            stopTest();
+                        }
+                    }
+                    else if (data.type === 'complete') {
+                        resultsDiv.innerHTML = `<div style="color:green;font-weight:bold;">
+                            ✅ Liveness verification successful!
+                        </div>`;
+                        stopTest();
+                    }
+                    else if (data.type === 'error') {
+                        resultsDiv.innerHTML = `<div style="color:red;">
+                            Error: ${data.message}
+                        </div>`;
+                        // Don't automatically stop on certain errors
+                        if (data.message.includes('timeout')) {
+                            stopTest();
+                        }
+                    }
+                };
+                
+                socket.onclose = (event) => {
+                    statusDiv.textContent = `Disconnected (${event.code})`;
+                    statusDiv.className = 'disconnected';
+                    stopTest();
+                };
+                
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    statusDiv.textContent = 'Connection error';
+                    statusDiv.className = 'disconnected';
+                };
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.className = 'disconnected';
+            }
+        };
+        
+        // Stop the test
+        stopBtn.onclick = stopTest;
+        
+        function stopTest() {
+            // Stop camera
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            // Stop WebSocket
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close(1000, 'User stopped');
+            }
+            
+            // Clear intervals
+            if (captureInterval) {
+                clearInterval(captureInterval);
+            }
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            challengeInfo.style.display = 'none';
+        }
+        
+        function updateChallengeUI(data) {
+            if (data.currentChallenge) {
+                challengeText.textContent = data.currentChallenge;
+            }
+            if (data.instructions) {
+                instructions.textContent = data.instructions;
+            }
+            if (data.challengesCompleted && data.challengesTotal) {
+                progress.textContent = `Progress: ${data.challengesCompleted.length} of ${data.challengesTotal} completed`;
+            }
+            
+            // Display success messages
+            if (data.message && data.success) {
+                resultsDiv.innerHTML = `<div style="color:green;">
+                    ✓ ${data.message}
+                </div>`;
+            } 
+            // Display error/guidance messages that aren't successes
+            else if (data.message && data.message !== "No movement detected" && 
+                     !data.message.includes("Initial position")) {
+                resultsDiv.innerHTML = `<div style="color:#d93025;">
+                    ${data.message}
+                </div>`;
+            }
+        }
+        
+        function startFrameCapture() {
+            // Capture frames every 500ms (2fps)
+            captureInterval = setInterval(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    captureFrame();
+                }
+            }, 500);
+        }
+        
+        function captureFrame() {
+            // Verify video is playing and has dimensions
+            if (!video.videoWidth || !video.videoHeight) {
+                console.log("Video not ready yet");
+                return;
+            }
+            
+            // Create canvas to capture video frame
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+            
+            // Send to server
+            socket.send(JSON.stringify({
+                type: 'frame',
+                image: imageData
+            }));
+        }
+        
+        function startChallengeTimer() {
+            let timeLeft = challengeTimeout;
+            
+            // Update timer display
+            timerDisplay.textContent = `Time remaining: ${timeLeft} seconds`;
+            
+            // Clear any existing timers
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            // Start new timer
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = `Time remaining: ${timeLeft} seconds`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                }
+            }, 1000);
+        }
+        
+        function resetChallengeTimer() {
+            // Reset the timer for the next challenge
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            startChallengeTimer();
+        }
+    </script>
+</body>
+</html>
