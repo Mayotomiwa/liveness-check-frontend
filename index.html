@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,7 +11,7 @@
             margin: 0;
             padding: 0;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             padding: 16px;
@@ -19,14 +20,14 @@
             max-width: 100%;
             overflow-x: hidden;
         }
-        
+
         h1 {
             text-align: center;
             color: #1f2937;
             font-size: 1.5rem;
             margin-bottom: 16px;
         }
-        
+
         .camera-container {
             position: relative;
             width: 85vw;
@@ -38,7 +39,7 @@
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-        
+
         video {
             position: absolute;
             top: 0;
@@ -46,9 +47,10 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Fix left/right inversion */
+            transform: scaleX(-1);
+            /* Fix left/right inversion */
         }
-        
+
         .progress-ring-container {
             position: absolute;
             top: -8px;
@@ -57,19 +59,19 @@
             bottom: -8px;
             pointer-events: none;
         }
-        
+
         .progress-ring {
             width: 100%;
             height: 100%;
             transform: rotate(-90deg);
         }
-        
+
         .progress-ring-circle {
             fill: transparent;
             stroke: #e5e7eb;
             stroke-width: 4px;
         }
-        
+
         .progress-ring-progress {
             fill: transparent;
             stroke: #10b981;
@@ -77,7 +79,7 @@
             stroke-linecap: round;
             transition: stroke-dashoffset 0.3s ease;
         }
-        
+
         .button-container {
             display: flex;
             justify-content: center;
@@ -85,7 +87,7 @@
             flex-wrap: wrap;
             gap: 10px;
         }
-        
+
         button {
             background: #4f46e5;
             color: white;
@@ -100,17 +102,17 @@
             font-size: 0.95rem;
             touch-action: manipulation;
         }
-        
+
         button:active {
             background: #4338ca;
             transform: scale(0.98);
         }
-        
+
         button:disabled {
             background: #d1d5db;
             cursor: not-allowed;
         }
-        
+
         #status {
             padding: 10px;
             margin: 10px 0;
@@ -118,17 +120,17 @@
             text-align: center;
             font-size: 0.9rem;
         }
-        
-        .connected { 
-            background: #ecfdf5; 
-            color: #065f46; 
+
+        .connected {
+            background: #ecfdf5;
+            color: #065f46;
         }
-        
-        .disconnected { 
-            background: #fef2f2; 
-            color: #b91c1c; 
+
+        .disconnected {
+            background: #fef2f2;
+            color: #b91c1c;
         }
-        
+
         .challenge-card {
             background: white;
             padding: 14px;
@@ -136,65 +138,71 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        
+
         .challenge-title {
             margin-top: 0;
             margin-bottom: 8px;
             color: #1f2937;
             font-size: 1.1rem;
         }
-        
-        #challengeText, #instructions, #progress {
+
+        #challengeText,
+        #instructions,
+        #progress {
             margin-bottom: 8px;
             font-size: 0.95rem;
         }
-        
+
         .timer {
             font-weight: bold;
             color: #ef4444;
             font-size: 0.9rem;
         }
-        
+
         #results {
             padding: 10px;
             text-align: center;
             font-weight: 500;
             font-size: 0.95rem;
         }
-        
+
         .success {
             color: #059669;
         }
-        
+
         .error {
             color: #dc2626;
         }
-        
+
         /* Media queries for responsive design */
         @media (max-width: 360px) {
             h1 {
                 font-size: 1.3rem;
             }
-            
+
             .camera-container {
                 width: 90vw;
                 height: 35vh;
             }
-            
+
             button {
                 padding: 10px 16px;
                 font-size: 0.9rem;
             }
-            
+
             .challenge-title {
                 font-size: 1rem;
             }
-            
-            #challengeText, #instructions, #progress, .timer, #results {
+
+            #challengeText,
+            #instructions,
+            #progress,
+            .timer,
+            #results {
                 font-size: 0.85rem;
             }
         }
-        
+
         /* For larger phones and tablets in portrait */
         @media (min-width: 540px) {
             .camera-container {
@@ -202,15 +210,16 @@
                 max-height: 450px;
             }
         }
-        
+
         /* Prevent zoom on double-tap for iOS */
-        
+
         touch-action: manipulation;
     </style>
 </head>
+
 <body>
     <h1>Liveness Detection</h1>
-    
+
     <div class="camera-container">
         <video id="video" autoplay playsinline></video>
         <div class="progress-ring-container">
@@ -220,14 +229,14 @@
             </svg>
         </div>
     </div>
-    
+
     <div class="button-container">
         <button id="startBtn">Start Verification</button>
         <button id="stopBtn" disabled>Cancel</button>
     </div>
-    
+
     <div id="status" class="disconnected">Ready to start</div>
-    
+
     <div id="challengeInfo" class="challenge-card" style="display: none;">
         <h3 class="challenge-title">Current Challenge</h3>
         <p id="challengeText"></p>
@@ -235,7 +244,7 @@
         <p id="progress"></p>
         <p id="timer" class="timer"></p>
     </div>
-    
+
     <div id="results"></div>
 
     <script>
@@ -250,26 +259,21 @@
         const timerDisplay = document.getElementById('timer');
         const resultsDiv = document.getElementById('results');
         const progressRing = document.getElementById('progressRing');
-        
         // Setup progress ring
         const progressRingRadius = {
             x: 154, // horizontal radius
-            y: 204  // vertical radius
+            y: 204 // vertical radius
         };
-        
         // Calculate perimeter of the ellipse (approximation)
         const ellipsePerimeter = 2 * Math.PI * Math.sqrt(
             (progressRingRadius.x * progressRingRadius.x + progressRingRadius.y * progressRingRadius.y) / 2
         );
-        
         // Set initial properties for the progress ring
         progressRing.style.strokeDasharray = `${ellipsePerimeter} ${ellipsePerimeter}`;
         progressRing.style.strokeDashoffset = `${ellipsePerimeter}`;
-        
         // Change this to your Render URL or local server
-        const wsUrl = 'wss://liveness-check-backend.onrender.com/ws'; 
+        const wsUrl = 'wss://liveness-check-backend.onrender.com/ws';
         const apiKey = 'liveness_detection_key_2025';
-        
         let socket;
         let stream;
         let captureInterval;
@@ -278,97 +282,101 @@
         let timerInterval;
         let totalChallenges = 1; // Will be updated from server
         let completedChallenges = 0;
-
         // Function to update progress ring
         function updateProgressRing(completed, total) {
             const progress = completed / total;
             const dashoffset = ellipsePerimeter * (1 - progress);
             progressRing.style.strokeDashoffset = dashoffset;
         }
-
         // Start the liveness check
         startBtn.onclick = async () => {
             try {
                 // Clear previous results
                 resultsDiv.innerHTML = '';
-                
                 // Reset progress ring
                 updateProgressRing(0, 1);
-                
                 // Mobile camera constraints - prefer HD if available but optimize for mobile
-                const constraints = { 
+                const constraints = {
                     video: {
                         facingMode: 'user',
-                        width: { ideal: 1280, min: 640 },
-                        height: { ideal: 720, min: 480 }
+                        width: {
+                            ideal: 1280,
+                            min: 640
+                        },
+                        height: {
+                            ideal: 720,
+                            min: 480
+                        }
                     },
                     audio: false
                 };
-                
                 // Access camera
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
-                
                 // Initialize WebSocket
                 socket = new WebSocket(wsUrl);
-                
                 socket.onopen = () => {
                     statusDiv.textContent = 'Connected - Starting session...';
                     statusDiv.className = 'connected';
                     startBtn.disabled = true;
                     stopBtn.disabled = false;
-                    
                     // Send initialization message
                     socket.send(JSON.stringify({
                         type: 'init',
                         apiKey: apiKey
                     }));
                 };
-                
                 socket.onmessage = (event) => {
                     const data = JSON.parse(event.data);
                     console.log('Received:', data);
-                    
                     // Handle ping messages to keep connection alive
                     if (data.type === 'ping') {
-                        socket.send(JSON.stringify({ type: 'pong' }));
+                        socket.send(JSON.stringify({
+                            type: 'pong'
+                        }));
                         return;
                     }
-                    
+                    // Add to the web code where verification completes
+                    if (data.type === 'complete') {
+                        // After verification is successful
+                        socket.send(JSON.stringify({
+                            type: 'complete'
+                        }));
+                        // Notify the container app
+                        if (window.ReactNativeWebView) {
+                            window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'verification_complete',
+                                success: true
+                            }));
+                        }
+                    }
                     if (data.type === 'session') {
                         sessionId = data.sessionId;
                         statusDiv.textContent = `Session active`;
                         challengeInfo.style.display = 'block';
-                        
                         // Set challenge timeout from server
                         if (data.timeout) {
                             challengeTimeout = data.timeout;
                         }
-                        
                         // Get total challenges if available
                         if (data.challengesTotal) {
                             totalChallenges = data.challengesTotal;
                         }
-                        
                         updateChallengeUI(data);
                         startFrameCapture();
                         startChallengeTimer();
-                    }
-                    else if (data.type === 'verification') {
+                    } else if (data.type === 'verification') {
                         updateChallengeUI(data);
-                        
                         // Check if we need to move to next challenge
                         if (data.success) {
                             // Reset the timer for the next challenge
                             resetChallengeTimer();
-                            
                             // Update completed challenges
                             if (data.challengesCompleted && data.challengesCompleted.length) {
                                 completedChallenges = data.challengesCompleted.length;
                                 updateProgressRing(completedChallenges, totalChallenges);
                             }
                         }
-                        
                         // Check for permanent verification failure
                         if (data.verificationFailed) {
                             resultsDiv.innerHTML = `<div class="error">
@@ -376,17 +384,14 @@
                             </div>`;
                             stopTest();
                         }
-                    }
-                    else if (data.type === 'complete') {
+                    } else if (data.type === 'complete') {
                         // Update to full completion
                         updateProgressRing(totalChallenges, totalChallenges);
-                        
                         resultsDiv.innerHTML = `<div class="success">
                             ✅ Liveness verification successful!
                         </div>`;
                         stopTest();
-                    }
-                    else if (data.type === 'error') {
+                    } else if (data.type === 'error') {
                         resultsDiv.innerHTML = `<div class="error">
                             Error: ${data.message}
                         </div>`;
@@ -396,55 +401,47 @@
                         }
                     }
                 };
-                
                 socket.onclose = (event) => {
                     statusDiv.textContent = `Disconnected (${event.code})`;
                     statusDiv.className = 'disconnected';
                     stopTest();
                 };
-                
                 socket.onerror = (error) => {
                     console.error('WebSocket error:', error);
                     statusDiv.textContent = 'Connection error';
                     statusDiv.className = 'disconnected';
                 };
-                
             } catch (error) {
                 console.error('Error:', error);
                 statusDiv.textContent = `Error: ${error.message}`;
                 statusDiv.className = 'disconnected';
             }
         };
-        
         // Stop the test
         stopBtn.onclick = stopTest;
-        
+
         function stopTest() {
             // Stop camera
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
             }
-            
             // Stop WebSocket
             if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.close(1000, 'User stopped');
             }
-            
             // Clear intervals
             if (captureInterval) {
                 clearInterval(captureInterval);
             }
-            
             if (timerInterval) {
                 clearInterval(timerInterval);
             }
-            
             startBtn.disabled = false;
             stopBtn.disabled = true;
             challengeInfo.style.display = 'none';
         }
-        
+
         function updateChallengeUI(data) {
             if (data.currentChallenge) {
                 challengeText.textContent = data.currentChallenge;
@@ -453,31 +450,29 @@
                 instructions.textContent = data.instructions;
             }
             if (data.challengesCompleted && data.challengesTotal) {
-                progress.textContent = `Progress: ${data.challengesCompleted.length} of ${data.challengesTotal} completed`;
-                
+                progress.textContent =
+                    `Progress: ${data.challengesCompleted.length} of ${data.challengesTotal} completed`;
                 // Update total challenges if needed
                 totalChallenges = data.challengesTotal;
                 completedChallenges = data.challengesCompleted.length;
-                
                 // Update progress ring
                 updateProgressRing(completedChallenges, totalChallenges);
             }
-            
             // Display success messages
             if (data.message && data.success) {
                 resultsDiv.innerHTML = `<div class="success">
                     ✓ ${data.message}
                 </div>`;
-            } 
+            }
             // Display error/guidance messages that aren't successes
-            else if (data.message && data.message !== "No movement detected" && 
-                     !data.message.includes("Initial position")) {
+            else if (data.message && data.message !== "No movement detected" &&
+                !data.message.includes("Initial position")) {
                 resultsDiv.innerHTML = `<div class="error">
                     ${data.message}
                 </div>`;
             }
         }
-        
+
         function startFrameCapture() {
             // Capture frames every 500ms (2fps)
             captureInterval = setInterval(() => {
@@ -486,58 +481,50 @@
                 }
             }, 500);
         }
-        
+
         function captureFrame() {
             // Verify video is playing and has dimensions
             if (!video.videoWidth || !video.videoHeight) {
                 console.log("Video not ready yet");
                 return;
             }
-            
             // Create canvas to capture video frame
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
-            
             // Draw the video frame (flipped horizontally to fix the inversion)
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transformation
-            
             // Optimize image for mobile - reduce quality slightly for better performance
             const imageData = canvas.toDataURL('image/jpeg', 0.65).split(',')[1];
-            
             // Send to server
             socket.send(JSON.stringify({
                 type: 'frame',
                 image: imageData
             }));
         }
-        
+
         function startChallengeTimer() {
             let timeLeft = challengeTimeout;
-            
             // Update timer display
             timerDisplay.textContent = `Time remaining: ${timeLeft} seconds`;
-            
             // Clear any existing timers
             if (timerInterval) {
                 clearInterval(timerInterval);
             }
-            
             // Start new timer
             timerInterval = setInterval(() => {
                 timeLeft--;
                 timerDisplay.textContent = `Time remaining: ${timeLeft} seconds`;
-                
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                 }
             }, 1000);
         }
-        
+
         function resetChallengeTimer() {
             // Reset the timer for the next challenge
             if (timerInterval) {
@@ -547,4 +534,5 @@
         }
     </script>
 </body>
+
 </html>
