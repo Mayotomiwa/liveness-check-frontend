@@ -44,11 +44,20 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100%; /* Keep at 100% of container */
+            height: 100%; /* Keep at 100% of container */
             object-fit: cover;
             transform: scaleX(-1);
             /* Fix left/right inversion */
+        }
+
+        /* Prevent video from going fullscreen */
+        video::-webkit-media-controls {
+            display: none !important;
+        }
+
+        video::-webkit-media-controls-fullscreen-button {
+            display: none !important;
         }
 
         .progress-ring-container {
@@ -212,8 +221,9 @@
         }
 
         /* Prevent zoom on double-tap for iOS */
-
-        touch-action: manipulation;
+        html, body, div, button {
+            touch-action: manipulation; 
+        }
     </style>
 </head>
 
@@ -221,7 +231,7 @@
     <h1>Liveness Detection</h1>
 
     <div class="camera-container">
-        <video id="video" autoplay playsinline></video>
+        <video id="video" autoplay playsinline muted></video>
         <div class="progress-ring-container">
             <svg class="progress-ring" viewBox="0 0 316 416">
                 <ellipse class="progress-ring-circle" cx="158" cy="208" rx="154" ry="204"></ellipse>
@@ -313,6 +323,14 @@
                 // Access camera
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                
+                // Add event listener to prevent fullscreen
+                video.addEventListener('enterfullscreen', (e) => {
+                    e.preventDefault();
+                    video.webkitExitFullScreen();
+                    return false;
+                });
+                
                 // Initialize WebSocket
                 socket = new WebSocket(wsUrl);
                 socket.onopen = () => {
@@ -532,6 +550,13 @@
             }
             startChallengeTimer();
         }
+        
+        // Prevent default behavior for fullscreen attempts
+        document.addEventListener('fullscreenchange', (e) => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.error(err));
+            }
+        }, false);
     </script>
 </body>
 
